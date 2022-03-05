@@ -1,6 +1,6 @@
-# Seminar: Segmentacija jetre pomoću Monaija i PyTorcha
+# Seminar: Segmentacija medicinskih slika jetre pomoću Monaija i PyTorcha
 
-Projekt *Seminar: Segmentacija jetre pomoću Monaija i PyTorcha* bavi se označavanjem dijelova slike koja predstavlja medicinski nalaz i na kojoj se nalazi jetra kao ciljni objekt označavanja. Cilj ovog projekta je prikazati arhitekturu postojećih modela dubokog učenja koji se koriste za segmentiranje objekata sa slika medicinskih nalaza, demonstrirati njihov rad korištenjem programskog jezika Python te odgovarajućih programskih biblioteka te ispitati performanse takvih modela i njihovu točnost. Osim za demonstraciju rada postojećih modela, ovaj projekt služi i kao tehnički uvod sadržavajući ulomke koji prikazuju postupke pripreme skupa podataka, njihova pretprocesiranja, ali i instalaciju potrebnih paketa te česte probleme i pogreške na koje je moguće naići prilikom uporabe istih.
+Projekt *Seminar: Segmentacija medicinskih slika jetre pomoću Monaija i PyTorcha* bavi se označavanjem dijelova slike koja predstavlja medicinski nalaz i na kojoj se nalazi jetra kao ciljni objekt označavanja. Cilj ovog projekta je prikazati arhitekturu postojećih modela dubokog učenja koji se koriste za segmentiranje objekata sa slika medicinskih nalaza, demonstrirati njihov rad korištenjem programskog jezika Python te odgovarajućih programskih biblioteka te ispitati performanse takvih modela i njihovu točnost. Osim za demonstraciju rada postojećih modela, ovaj projekt služi i kao tehnički uvod sadržavajući ulomke koji prikazuju postupke pripreme skupa podataka, njihova pretprocesiranja, ali i instalaciju potrebnih paketa te česte probleme i pogreške na koje je moguće naići prilikom uporabe istih.
 
 ## 1. U-Net: definicija arhitekture
 
@@ -20,11 +20,21 @@ izlaz na temelju ovako dobivenih informacija.
 
 Arhitektura mreže prikazana je na **Slika 1.**. Sastoji se od sažimajućeg dijela (lijeva strana mreže) i proširujućeg dijela (desna strana mreže). Sažimajući dio oslanja se na uobičajenu strukturu konvolucijskih mreža. Sastoji se od ponovljene primjene dviju konvolucijskih mreža 3x3, nakon kojih slijedi izlaz zglobnice (engl. *Rectified Linear Unit, ReLU*) te 2x2 max-pooling operacija s korakom (engl. *stride*) postavljenim na vrijednost 2 za smanjenje uzorkovanja (engl. *downsampling*). U svakom koraku smanjenja uzorkovanja broj kanala značajki se udvostručuje. Proširujući dio sastoji se od (simetrično) povećanja uzorkovanja (engl. *upsampling*) značajki nakon kojeg slijedi konvolucija 2x2 koja prepolovljava broj kanala značajki, konkatenacije s prethodno izrezanim značajkama iz sažimajućeg dijela te dvije 3x3 konvolucije nakon kojih slijedi izlaz zglobnice.
 
-
 ## 2. Priprema skupa podataka
+Budući da se za daljnje potrebe projekta očekuje da se korišteni podatci dostavljaju u dogovorenom obliku, potrebno ih je pripremiti i predobraditi. S obzirom na to da će se određeni dio tih dvaju procesa obaviti automatizirano, dok će se dio obraditi manualno - napravljena je finija podjela na poglavlja koja se bave pripremom i pretprocesiranjem podataka. 
 
+Na sljedećoj [poveznici](https://drive.google.com/drive/folders/1HqEgzS8BV2c7xYNrZdEAnrHk7osJJ--2) nalaze se medicinske slike jetre kao i ispravne labele korištene u daljnjem dijelu rada. Preuzete slike dimenzijski su određene svojom visinom, širinom, ali i brojem razina (engl. *slices*) koje predstavljaju svojevrsni horizontalni presjek organa koji se uzimaju u razmatranje, a koji, naravno, imaju i prostorno zauzeće. Problem će predstavljati činjenica da broj razina za svakog pacijenta (sliku) nije jednak. 
+
+Obrada podataka uključuje pretvorbu nifti datoteka u dicom datoteke. Za taj postupak koristi se alat 3D Slicer i njegova opcija koju nudi **Create a Dicom Series**. Na ovaj je način moguće i za svakog pacijenta manualno postaviti broj razina od interesa i riješiti se ranije uvedenog problema.  Međutim, kako bi se izbjegla gnjavaža manualnog postavljanja broja razina za svakog pacijenta - napisana je skripta `preprocess.py` koja automatizira navedeni posao. Ujedno u ovoj se skripti nalazi i funkcija koja radi pretvorbu između nifti i dicom datoteka. 
 
 ## 3. Pretprocesiranje
+Za izradu ovog dijela projetka koristit će se *open source* alat monai, koji se temelji na PyTorchu. Prvi korak je instaliranje biblioteke pomoću `pip` ili `conda`, ovisno o okruženju koje se koristi. Preporuka je postaviti virtualno okruženje za projekt jer ova biblioteka ne radi uvijek kada je instalirana izravno u sustav.
+
+Kako bi se primijenilo više transformacija na istog pacijenta, koristi se monaijevu funkciju `compose`, koja  omogućuje kombiniranje bilo koje transformacije po izboru (one definirane u monai dokumentaciji).
+
+Prilikom korištenja monaija, primarne transformacije su `Load image` za učitavanje *nifty* datoteka i `ToTensor` za pretvaranje transformiranih podataka u *torch tenzore* kako bi ih se moglo koristiti za treniranje.
+
+Nakon navedenih temeljnih transformacije, vrijedno je istaknuti i one koje se pokazuju korisnima u praksi: `AddChanneld`, `Spacingd`, `ScalIntensityRanged`, `CropForegroundd`, `Resized`.
 
 ## 4. Instalacija potrebnih paketa
 Priprema radne okoline za pokretanje programskog koda uključuje instalaciju programskog jezika Python (budući da se koriste programske biblioteke Monai i PyTorch), preferiranu razvojnu okolinu (npr. VSCode, PyCharm), 3D slicer za prikazivanje podataka te ITK snap korekciju segmentacija (možda neće biti korištenu u ovom projektu, ali generalno je koristan alat za probleme segmentiranja). 
@@ -38,10 +48,19 @@ U ovom projektu koristi se razvojna okolina Visual Studio Code[^7^](#7), međuti
 ITK-SNAP[^9^](#9) je softverska aplikacija koja se koristi za segmentiranje struktura u 3D medicinskim slikama. Instalacija navedenog programa svodi se na odabir prikladne verzije (s obzirom na operacijski sustav) te ispunjavanjem podataka koji služe tvorcima aplikacije (moguće i preskočiti).
 
 ## 5. Česti problemi i pogreške
+Praćenjem ovog dokumenta u želji za reproduciranjem rezultata seminara moguće je napraviti pogreške koje će kasnije rezultirati neispravnim rezultatima ili pogreškama koje konzumiraju vrijeme za njihovo ispravljanje. 
 
-## 6. Treniranje/učenje modela
+Pogrešno navedena putanja do medicinskih slika jetre ili pripadajućih labela jedna je od mogućih pogrešaka koju je vrlo lako napraviti pogotovo kad je riječ o tipfeleru u duljim nazivima datoteka i foldera. Ovakve pogreška može rezultirati greškom `TypeError` u kojoj je `DataLoader` prazan. 
+
+Pogrešna vrijednost ključa u rječniku rezultirat će greškom tipa `KeyError` iz čije će se poruke dati zaključiti o kakvom se konkretno propustu radi. Zbog ovakve pogreške tranformacije koje radi monai neće raditi ispravno (ako i uopće).
+
+## 6. Treniranje modela
+Skripta napisana za ovaj dio projekta sadržana je u `train.py`.  Metrika koja se bavi analizom performansi treniranja i testiranja modela sadržana je u skripti `utilities.py`. 
+
+Konkretan model predstavlja ranije opisana poznata mreža **UNet** importana iz modula `monai.networks.nets`. Vrijednost parametra `dimensions` postavljena je na `3` što je prirodan odabir budući da se radi o segmetaciji ogana jetra koji ima svoje prostorno zauzeće. Vrijednost parametra `in_channel` postavljena je na `1` budući da se radi s maskom koja ima samo jedan kanal, no vrijednost parametra `out_channel` postavljena je na `2` budući da je bitno razdvojiti pozadinu od onoga što je ispred nje. 
 
 ## 7. Testiranje modela
+Skripta koja se bavi ovim dijelom projekta napisana je u `testing.ipynb`. Iz skripte je vidljivo da je nad istreniranim modelom računat gubitak *dice loss* za kojeg je iz nacrtanih grafova vidljivo da je nakon određenog broja epoha porast epoha bio irelevantan za smanjenje gubitka budući da je model došao do platoa na skupu podataka za testiranje. Također, moguće je vidjeti kako model konkretno radi nad zadanim slikama jetre te segmentira dijelove koji joj pripadaju od pozadine.
 
 ## 8. Izvori
 
